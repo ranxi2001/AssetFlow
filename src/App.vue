@@ -125,6 +125,7 @@
             :by-category="dashboard?.byCategory || {}"
             @edit="openEditForm"
             @delete="handleDelete"
+            @add="openAddFormWithCategory"
           />
           <button
             @click="openAddForm"
@@ -280,6 +281,11 @@ async function handleDaysChange(days) {
 
 function openAddForm() {
   editingAsset.value = null
+  showForm.value = true
+}
+
+function openAddFormWithCategory(category) {
+  editingAsset.value = { category }
   showForm.value = true
 }
 

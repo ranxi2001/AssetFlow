@@ -67,6 +67,7 @@
             </optgroup>
             <optgroup label="Web2">
               <option value="bank">银行存款</option>
+              <option value="wealth">银行理财</option>
               <option value="alipay">支付宝</option>
               <option value="wechat">微信</option>
               <option value="stock">股票</option>
@@ -137,7 +138,7 @@
             type="text"
             list="locationSuggestions"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="如: 币安钱包, 工商银行, 支付宝"
+            placeholder="如: 币安钱包, 网商银行, 支付宝"
           />
           <datalist id="locationSuggestions">
             <option value="币安钱包" />
@@ -146,12 +147,6 @@
             <option value="Ledger" />
             <option value="支付宝" />
             <option value="微信" />
-            <option value="工商银行" />
-            <option value="招商银行" />
-            <option value="建设银行" />
-            <option value="农业银行" />
-            <option value="中国银行" />
-            <option value="交通银行" />
             <option value="实物" />
           </datalist>
         </div>
@@ -196,6 +191,7 @@ const presets = [
   { name: 'usd1', label: 'USD1', category: 'web3', type: 'stablecoin', symbol: 'USD1', unit: '个', location: '币安钱包' },
   { name: 'gold', label: '黄金', category: 'physical', type: 'gold', symbol: 'XAU', unit: 'g', location: '实物' },
   { name: 'bank', label: '银行存款', category: 'web2', type: 'bank', symbol: 'CNY', unit: 'CNY', location: '' },
+  { name: 'wealth', label: '银行理财', category: 'web2', type: 'wealth', symbol: 'CNY', unit: 'CNY', location: '' },
   { name: 'alipay', label: '支付宝', category: 'web2', type: 'alipay', symbol: 'CNY', unit: 'CNY', location: '支付宝' },
   { name: 'wechat', label: '微信', category: 'web2', type: 'wechat', symbol: 'CNY', unit: 'CNY', location: '微信' },
   { name: 'stock', label: '股票', category: 'web2', type: 'stock', symbol: 'CNY', unit: '股', location: '' },
