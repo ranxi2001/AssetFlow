@@ -1,0 +1,47 @@
+# AI 设置
+.claude/
+
+# 个人数据
+data/assetflow.db
+data/*.db
+data/*.sqlite
+
+# Node.js 依赖
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 构建产物
+dist/
+dist-ssr/
+*.local
+
+# 编辑器配置
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志文件
+logs/
+*.log
+
+# 临时文件
+*.tmp
+.cache/
+
+# 测试覆盖率
+coverage/
+
+# 系统文件
+Thumbs.db

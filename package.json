@@ -1,0 +1,27 @@
+{
+  "name": "assetflow",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "lsof -ti :1456 | xargs kill -9 2>/dev/null || true; lsof -ti :1457 | xargs kill -9 2>/dev/null || true; sleep 1; node server/index.js & sleep 3 && vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chart.js": "^4.5.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "sql.js": "^1.8.0",
+    "vue": "^3.3.8",
+    "vue-chartjs": "^5.3.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "vite": "^5.0.0"
+  }
+}
