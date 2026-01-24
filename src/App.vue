@@ -183,6 +183,35 @@ const historyDays = ref(30)
 const showForm = ref(false)
 const editingAsset = ref(null)
 
+// Cache utilities
+const CACHE_KEY = 'assetflow_cache'
+const getCacheKey = () => new Date().toISOString().split('T')[0] // YYYY-MM-DD
+
+function getCache() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY)
+    if (!cached) return null
+    const data = JSON.parse(cached)
+    // Check if cache is from today
+    if (data.date !== getCacheKey()) return null
+    return data
+  } catch {
+    return null
+  }
+}
+
+function setCache(priceHistoryData, ratesData) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      date: getCacheKey(),
+      priceHistory: priceHistoryData,
+      rates: ratesData
+    }))
+  } catch (e) {
+    console.warn('Cache write failed:', e)
+  }
+}
+
 async function checkPassword() {
   try {
     const result = await hasPassword()
@@ -229,14 +258,29 @@ function handleLogout() {
 async function loadDashboard() {
   try {
     error.value = null
-    const [dashboardData, historyData, ratesData] = await Promise.all([
-      getDashboard(),
-      getPriceHistory(null, 30),
-      getRates()
-    ])
-    dashboard.value = dashboardData
-    priceHistory.value = historyData
-    rates.value = ratesData
+
+    // Check cache first for price history and rates (refreshed daily)
+    const cached = getCache()
+
+    if (cached) {
+      // Use cached data for charts, only fetch fresh dashboard data
+      const dashboardData = await getDashboard()
+      dashboard.value = dashboardData
+      priceHistory.value = cached.priceHistory
+      rates.value = cached.rates
+    } else {
+      // No cache or expired, fetch all data
+      const [dashboardData, historyData, ratesData] = await Promise.all([
+        getDashboard(),
+        getPriceHistory(null, 30),
+        getRates()
+      ])
+      dashboard.value = dashboardData
+      priceHistory.value = historyData
+      rates.value = ratesData
+      // Save to cache
+      setCache(historyData, ratesData)
+    }
   } catch (err) {
     error.value = '加载数据失败: ' + (err.response?.data?.error || err.message)
   } finally {
@@ -248,6 +292,8 @@ async function handleRefreshPrices() {
   refreshing.value = true
   try {
     await refreshPrices()
+    // Clear cache to force reload
+    localStorage.removeItem(CACHE_KEY)
     await loadDashboard()
   } catch (err) {
     error.value = '刷新价格失败: ' + (err.response?.data?.error || err.message)
@@ -261,8 +307,10 @@ async function handleBackfill(days) {
   try {
     const result = await backfillPriceHistory(days)
     alert(result.message)
-    // 重新加载价格历史
+    // Clear cache and reload price history
+    localStorage.removeItem(CACHE_KEY)
     priceHistory.value = await getPriceHistory(null, days)
+    setCache(priceHistory.value, rates.value)
   } catch (err) {
     alert('补全数据失败: ' + (err.response?.data?.error || err.message))
   } finally {
@@ -274,6 +322,7 @@ async function handleDaysChange(days) {
   historyDays.value = days
   try {
     priceHistory.value = await getPriceHistory(null, days)
+    setCache(priceHistory.value, rates.value)
   } catch (err) {
     console.error('加载历史数据失败:', err)
   }

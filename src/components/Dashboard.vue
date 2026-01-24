@@ -192,6 +192,7 @@ const typeColors = {
   stock: { chart: 'rgba(236, 72, 153, 0.8)', label: '股票' },
   fund: { chart: 'rgba(244, 63, 94, 0.8)', label: '基金' },
   bond: { chart: 'rgba(251, 146, 60, 0.8)', label: '债券' },
+  wealth: { chart: 'rgba(6, 182, 212, 0.8)', label: '银行' },
   other: { chart: 'rgba(107, 114, 128, 0.8)', label: '其他' }
 }
 
@@ -332,8 +333,29 @@ const typeChartData = computed(() => {
 const assetChartData = computed(() => {
   if (!props.data?.assets) return null
 
-  const sortedAssets = [...props.data.assets]
-    .filter(a => a.valueUsd > 0)
+  // 按 name 分组聚合同名资产
+  const assetMap = new Map()
+
+  for (const asset of props.data.assets) {
+    if (asset.valueUsd <= 0) continue
+
+    // 使用 name 作为唯一标识进行合并
+    const key = asset.name
+
+    if (assetMap.has(key)) {
+      // 已存在该资产，累加价值
+      assetMap.get(key).valueUsd += asset.valueUsd
+    } else {
+      // 新资产，添加到 Map
+      assetMap.set(key, {
+        name: asset.name,
+        valueUsd: asset.valueUsd
+      })
+    }
+  }
+
+  // 转换为数组并按价值排序
+  const sortedAssets = Array.from(assetMap.values())
     .sort((a, b) => b.valueUsd - a.valueUsd)
 
   return {

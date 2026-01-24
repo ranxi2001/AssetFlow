@@ -6,7 +6,8 @@
     "dev": "lsof -ti :1456 | xargs kill -9 2>/dev/null || true; lsof -ti :1457 | xargs kill -9 2>/dev/null || true; sleep 1; node server/index.js & sleep 3 && vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server/index.js"
+    "server": "node server/index.js",
+    "start": "lsof -ti :${PORT:-1457} | xargs kill -9 2>/dev/null || true; sleep 1; NODE_ENV=production node server/index.js"
   },
   "dependencies": {
     "axios": "^1.6.0",

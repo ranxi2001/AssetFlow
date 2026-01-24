@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   initDatabase,
   getAllAssets,
@@ -18,11 +20,16 @@ import {
 import { getPrice, getAllPrices, refreshAllPrices, fetchAllHistoricalPrices, fetchAllRates } from './priceService.js';
 
 const app = express();
-const PORT = 1457;
+const PORT = process.env.PORT || 1457;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distPath = path.join(__dirname, '../dist');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from dist folder (production build)
+app.use(express.static(distPath));
 
 // Initialize database before starting server
 await initDatabase();
@@ -341,7 +348,12 @@ app._router.stack.forEach((r) => {
   }
 });
 
+// SPA fallback - serve index.html for non-API routes (must be after API routes)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`AssetFlow API server running on http://0.0.0.0:${PORT}`);
+  console.log(`AssetFlow server running on http://0.0.0.0:${PORT}`);
 });

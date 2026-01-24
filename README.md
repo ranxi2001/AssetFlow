@@ -89,11 +89,39 @@ npm run dev
 
 在浏览器中打开 `http://localhost:1456`，首次访问时你可以设置一个访问密码（可选）。
 
-5. **构建生产版本**
+### 生产部署
+
+1. **构建生产版本**
 
 ```bash
 npm run build
 ```
+
+2. **启动生产服务器**
+
+```bash
+PORT=1456 npm run start
+```
+
+3. **后台持久运行（推荐使用 pm2）**
+
+```bash
+# 安装 pm2
+npm install -g pm2
+
+# 启动服务
+PORT=1456 pm2 start server/index.js --name assetflow
+
+# 设置开机自启
+pm2 save
+pm2 startup
+```
+
+> [!TIP]
+> **生产模式优势**：
+> - 预编译的静态文件，页面加载更快
+> - JS/CSS 文件已压缩和代码分割
+> - 单一端口访问，无需代理配置
 
 ---
 
