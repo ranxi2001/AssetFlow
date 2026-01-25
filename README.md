@@ -12,6 +12,20 @@
 
 ---
 
+## 📸 应用截图
+
+<div align="center">
+
+![资产看板主界面](assets/screenshot-dashboard.png)
+*资产看板主界面 - 资产分布可视化、实时价格追踪*
+
+![资产趋势与详情](assets/screenshot-detail.png)
+*资产总值趋势图 - 30天价值变化、分类资产详情*
+
+</div>
+
+---
+
 ## ✨ 特性
 
 - 🌐 **多资产类型支持**：Web2 资产（银行、支付宝、微信）、Web3 资产（交易所、钱包、DeFi）、实物资产（贵金属、外汇）
@@ -263,8 +277,8 @@ AssetFlow 使用 [CoinGecko API](https://www.coingecko.com/en/api) 获取实时�
 
 如有问题或建议，请通过以下方式联系：
 
-- 提交 [Issue](https://github.com/yourusername/AssetFlow/issues)
-- 发送邮件至：your.email@example.com
+- 提交 [Issue](https://github.com/ranxi2001/AssetFlow/issues)
+- 发送邮件至：ranxi.cn@gmail.com
 
 ---
 
