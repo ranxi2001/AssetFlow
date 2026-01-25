@@ -115,13 +115,17 @@ async function fetchUsdCnyRate() {
 }
 
 // Get price for a symbol with caching
-export async function getPrice(symbol, forceRefresh = false) {
+// cacheOnly=true: 只从数据库读取缓存，不调用 API（页面加载时使用）
+// forceRefresh=true: 强制调用 API 刷新（用户点击刷新时使用）
+export async function getPrice(symbol, forceRefresh = false, cacheOnly = false) {
   const upperSymbol = symbol.toUpperCase();
 
-  // Check cache first
-  if (!forceRefresh) {
-    const cached = getCachedPrice(upperSymbol);
-    if (cached && isCacheValid(cached.cached_at)) {
+  // 从缓存读取（无论是否过期，先返回缓存数据）
+  const cached = getCachedPrice(upperSymbol);
+
+  // 如果只读缓存模式，直接返回缓存数据
+  if (cacheOnly) {
+    if (cached) {
       return {
         symbol: upperSymbol,
         priceUsd: cached.price_usd,
@@ -131,6 +135,19 @@ export async function getPrice(symbol, forceRefresh = false) {
         cachedAt: cached.cached_at
       };
     }
+    return null; // 无缓存时返回 null
+  }
+
+  // 非强制刷新时，检查缓存是否有效
+  if (!forceRefresh && cached && isCacheValid(cached.cached_at)) {
+    return {
+      symbol: upperSymbol,
+      priceUsd: cached.price_usd,
+      priceCny: cached.price_cny,
+      source: cached.source,
+      cached: true,
+      cachedAt: cached.cached_at
+    };
   }
 
   let priceData = null;
@@ -183,7 +200,6 @@ export async function getPrice(symbol, forceRefresh = false) {
   }
 
   // Return cached data even if expired, as fallback
-  const cached = getCachedPrice(upperSymbol);
   if (cached) {
     return {
       symbol: upperSymbol,
@@ -199,15 +215,22 @@ export async function getPrice(symbol, forceRefresh = false) {
   return null;
 }
 
-// Get all prices for given symbols
-export async function getAllPrices(symbols, forceRefresh = false) {
+// Get all prices for given symbols (并行获取提升性能)
+// cacheOnly=true: 只从数据库读取，不调用 API（秒开）
+export async function getAllPrices(symbols, forceRefresh = false, cacheOnly = false) {
   const prices = {};
-  for (const symbol of symbols) {
-    const price = await getPrice(symbol, forceRefresh);
-    if (price) {
-      prices[symbol.toUpperCase()] = price;
+
+  // 使用 Promise.allSettled 并行获取所有价格
+  const results = await Promise.allSettled(
+    symbols.map(symbol => getPrice(symbol, forceRefresh, cacheOnly))
+  );
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value) {
+      prices[symbols[index].toUpperCase()] = result.value;
     }
-  }
+  });
+
   return prices;
 }
 

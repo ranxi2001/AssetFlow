@@ -157,9 +157,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, defineAsyncComponent } from 'vue'
 import { getDashboard, refreshPrices, createAsset, updateAsset, deleteAsset, verifyPassword, hasPassword, getPriceHistory, backfillPriceHistory, getRates } from './api'
-import Dashboard from './components/Dashboard.vue'
+// 懒加载 Dashboard 组件（包含 Chart.js，体积较大）
+const Dashboard = defineAsyncComponent(() => import('./components/Dashboard.vue'))
 import AssetList from './components/AssetList.vue'
 import AssetForm from './components/AssetForm.vue'
 
@@ -183,9 +184,11 @@ const historyDays = ref(30)
 const showForm = ref(false)
 const editingAsset = ref(null)
 
-// Cache utilities
+// Cache utilities - 支持 stale-while-revalidate 模式
 const CACHE_KEY = 'assetflow_cache'
+const DASHBOARD_CACHE_KEY = 'assetflow_dashboard'
 const getCacheKey = () => new Date().toISOString().split('T')[0] // YYYY-MM-DD
+const CACHE_MAX_AGE = 6 * 60 * 60 * 1000 // 6小时内缓存可作为 stale 数据使用
 
 function getCache() {
   try {
@@ -200,10 +203,58 @@ function getCache() {
   }
 }
 
+// 获取可用的旧缓存（用于 stale-while-revalidate）
+function getStaleCache() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY)
+    if (!cached) return null
+    const data = JSON.parse(cached)
+    // 检查缓存是否在可接受的时间范围内（6小时）
+    if (data.timestamp && (Date.now() - data.timestamp) < CACHE_MAX_AGE) {
+      return data
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// 获取 Dashboard 数据缓存
+function getDashboardCache() {
+  try {
+    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY)
+    if (!cached) return null
+    const data = JSON.parse(cached)
+    // Dashboard 缓存5分钟有效
+    if (data.timestamp && (Date.now() - data.timestamp) < 5 * 60 * 1000) {
+      return data.dashboard
+    }
+    // 返回旧数据用于 stale 显示
+    if (data.timestamp && (Date.now() - data.timestamp) < CACHE_MAX_AGE) {
+      return { ...data.dashboard, stale: true }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function setDashboardCache(dashboardData) {
+  try {
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      dashboard: dashboardData
+    }))
+  } catch (e) {
+    console.warn('Dashboard cache write failed:', e)
+  }
+}
+
 function setCache(priceHistoryData, ratesData) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       date: getCacheKey(),
+      timestamp: Date.now(),
       priceHistory: priceHistoryData,
       rates: ratesData
     }))
@@ -259,17 +310,33 @@ async function loadDashboard() {
   try {
     error.value = null
 
-    // Check cache first for price history and rates (refreshed daily)
+    // Stale-While-Revalidate: 先显示缓存数据，后台更新
     const cached = getCache()
+    const staleCache = !cached ? getStaleCache() : null
+    const dashboardCached = getDashboardCache()
 
+    // 1. 立即显示缓存数据（如果有）
+    if (dashboardCached) {
+      dashboard.value = dashboardCached
+      loading.value = false // 先停止加载状态
+    }
     if (cached) {
-      // Use cached data for charts, only fetch fresh dashboard data
-      const dashboardData = await getDashboard()
-      dashboard.value = dashboardData
       priceHistory.value = cached.priceHistory
       rates.value = cached.rates
+    } else if (staleCache) {
+      // 使用旧缓存先显示
+      priceHistory.value = staleCache.priceHistory
+      rates.value = staleCache.rates
+    }
+
+    // 2. 后台更新数据
+    if (cached && dashboardCached && !dashboardCached.stale) {
+      // 缓存完全有效，只需要刷新 dashboard
+      const dashboardData = await getDashboard()
+      dashboard.value = dashboardData
+      setDashboardCache(dashboardData)
     } else {
-      // No cache or expired, fetch all data
+      // 需要刷新所有数据
       const [dashboardData, historyData, ratesData] = await Promise.all([
         getDashboard(),
         getPriceHistory(null, 30),
@@ -280,9 +347,15 @@ async function loadDashboard() {
       rates.value = ratesData
       // Save to cache
       setCache(historyData, ratesData)
+      setDashboardCache(dashboardData)
     }
   } catch (err) {
-    error.value = '加载数据失败: ' + (err.response?.data?.error || err.message)
+    // 如果有缓存数据，不显示错误（降级到缓存）
+    if (!dashboard.value) {
+      error.value = '加载数据失败: ' + (err.response?.data?.error || err.message)
+    } else {
+      console.warn('后台刷新失败，使用缓存数据:', err.message)
+    }
   } finally {
     loading.value = false
   }

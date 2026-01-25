@@ -24,6 +24,119 @@ const PORT = process.env.PORT || 1457;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.join(__dirname, '../dist');
 
+// 内存缓存 - 用于加速首次加载
+const memoryCache = {
+  rates: null,
+  ratesUpdatedAt: null,
+  priceHistory: null,
+  priceHistoryUpdatedAt: null,
+  RATES_TTL: 10 * 60 * 1000,        // 10分钟
+  HISTORY_TTL: 30 * 60 * 1000       // 30分钟
+};
+
+// 预加载缓存数据
+async function preloadCache() {
+  console.log('Preloading cache...');
+  try {
+    // 预加载汇率
+    memoryCache.rates = await fetchAllRates();
+    memoryCache.ratesUpdatedAt = Date.now();
+    console.log('Rates cached');
+
+    // 预加载价格历史
+    const history = getAllPriceHistory(30);
+    if (history && history.length > 0) {
+      memoryCache.priceHistory = history;
+      memoryCache.priceHistoryUpdatedAt = Date.now();
+      console.log(`Price history cached: ${history.length} records`);
+    }
+  } catch (err) {
+    console.error('Preload cache error:', err.message);
+  }
+}
+
+// 后台刷新缓存
+function startCacheRefresh() {
+  // 每5分钟刷新汇率（从缓存读取，不调用API）
+  setInterval(async () => {
+    try {
+      // 只在有内存缓存时刷新，避免频繁 API 调用
+      if (memoryCache.rates) {
+        console.log('Rates memory cache still valid');
+      }
+    } catch (err) {
+      console.error('Rates refresh error:', err.message);
+    }
+  }, 5 * 60 * 1000);
+
+  // 每15分钟刷新价格历史（从数据库）
+  setInterval(() => {
+    try {
+      const history = getAllPriceHistory(30);
+      if (history && history.length > 0) {
+        memoryCache.priceHistory = history;
+        memoryCache.priceHistoryUpdatedAt = Date.now();
+      }
+    } catch (err) {
+      console.error('History refresh error:', err.message);
+    }
+  }, 15 * 60 * 1000);
+}
+
+// 每日自动刷新所有价格（在凌晨2点执行）
+function startDailyPriceRefresh() {
+  const refreshPricesDaily = async () => {
+    console.log('Starting daily price refresh...');
+    try {
+      const assets = getAllAssets();
+      const symbols = [...new Set(assets.map(a => a.symbol).filter(Boolean))];
+      // 强制刷新，调用 API
+      const prices = await getAllPrices(symbols, true, false);
+      console.log(`Daily refresh completed: ${Object.keys(prices).length} prices updated`);
+
+      // 同时刷新汇率
+      memoryCache.rates = await fetchAllRates();
+      memoryCache.ratesUpdatedAt = Date.now();
+      console.log('Daily rates refresh completed');
+    } catch (err) {
+      console.error('Daily refresh error:', err.message);
+    }
+  };
+
+  // 计算距离下次凌晨2点的时间
+  const scheduleNextRefresh = () => {
+    const now = new Date();
+    const next = new Date();
+    next.setHours(2, 0, 0, 0);
+    if (next <= now) {
+      next.setDate(next.getDate() + 1);
+    }
+    const delay = next.getTime() - now.getTime();
+    console.log(`Next daily refresh scheduled in ${Math.round(delay / 1000 / 60)} minutes`);
+
+    setTimeout(() => {
+      refreshPricesDaily();
+      // 之后每24小时执行一次
+      setInterval(refreshPricesDaily, 24 * 60 * 60 * 1000);
+    }, delay);
+  };
+
+  scheduleNextRefresh();
+
+  // 如果服务器刚启动且缓存为空，立即执行一次刷新
+  const assets = getAllAssets();
+  const symbols = [...new Set(assets.map(a => a.symbol).filter(s => s && s !== 'CNY'))];
+
+  // 检查是否有缓存数据
+  setTimeout(async () => {
+    const prices = await getAllPrices(symbols, false, true); // cacheOnly
+    if (Object.keys(prices).length < symbols.length) {
+      console.log('Cache incomplete, triggering initial refresh...');
+      await refreshPricesDaily();
+    }
+  }, 1000);
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -34,6 +147,11 @@ app.use(express.static(distPath));
 // Initialize database before starting server
 await initDatabase();
 console.log('Database initialized');
+
+// 预加载缓存
+await preloadCache();
+startCacheRefresh();
+startDailyPriceRefresh();
 
 // GET /api/assets - Get all assets
 app.get('/api/assets', (req, res) => {
@@ -157,12 +275,13 @@ app.post('/api/prices/refresh', async (req, res) => {
   }
 });
 
-// GET /api/dashboard - Get dashboard summary
+// GET /api/dashboard - Get dashboard summary (使用缓存模式，秒开)
 app.get('/api/dashboard', async (req, res) => {
   try {
     const assets = getAllAssets();
     const symbols = [...new Set(assets.map(a => a.symbol).filter(Boolean))];
-    const prices = await getAllPrices(symbols);
+    // 默认使用缓存模式，不调用外部 API
+    const prices = await getAllPrices(symbols, false, true);
 
     // Calculate totals
     let totalUsd = 0;
@@ -218,17 +337,33 @@ app.get('/api/dashboard', async (req, res) => {
   }
 });
 
-// GET /api/price-history - Get price history for charts
+// GET /api/price-history - Get price history for charts (使用内存缓存)
 app.get('/api/price-history', (req, res) => {
   try {
     const days = parseInt(req.query.days) || 30;
     const symbol = req.query.symbol;
 
+    // 设置缓存头 - 客户端缓存30分钟
+    res.set('Cache-Control', 'public, max-age=1800, stale-while-revalidate=3600');
+
     if (symbol) {
       const history = getPriceHistory(symbol, days);
       res.json(history);
     } else {
+      // 对于30天全量数据，优先使用内存缓存
+      if (days === 30 && memoryCache.priceHistory &&
+        (Date.now() - memoryCache.priceHistoryUpdatedAt) < memoryCache.HISTORY_TTL) {
+        return res.json(memoryCache.priceHistory);
+      }
+
       const history = getAllPriceHistory(days);
+
+      // 更新缓存
+      if (days === 30) {
+        memoryCache.priceHistory = history;
+        memoryCache.priceHistoryUpdatedAt = Date.now();
+      }
+
       res.json(history);
     }
   } catch (error) {
@@ -310,13 +445,28 @@ app.get('/api/auth/has-password', (req, res) => {
   }
 });
 
-// GET /api/rates - 获取所有汇率信息
+// GET /api/rates - 获取所有汇率信息 (使用内存缓存)
 app.get('/api/rates', async (req, res) => {
   try {
+    // 设置缓存头 - 客户端缓存10分钟
+    res.set('Cache-Control', 'public, max-age=600, stale-while-revalidate=1800');
+
+    // 优先使用内存缓存
+    if (memoryCache.rates && (Date.now() - memoryCache.ratesUpdatedAt) < memoryCache.RATES_TTL) {
+      return res.json(memoryCache.rates);
+    }
+
+    // 缓存过期或不存在，重新获取
     const rates = await fetchAllRates();
+    memoryCache.rates = rates;
+    memoryCache.ratesUpdatedAt = Date.now();
     res.json(rates);
   } catch (error) {
     console.error('Error fetching rates:', error);
+    // 如果有旧缓存，返回旧数据
+    if (memoryCache.rates) {
+      return res.json(memoryCache.rates);
+    }
     res.status(500).json({ error: 'Failed to fetch rates' });
   }
 });
