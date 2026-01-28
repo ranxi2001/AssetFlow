@@ -133,6 +133,7 @@ const nameImageIcons = {
   '帮你投': '/icons/bangnitou.png',
   '基金': '/icons/fund.svg',
   '余额宝': '/icons/yuebao.png',
+  '微信': '/icons/wechat.png',
 }
 
 // Check if asset has an image icon (by symbol, name, or location)
