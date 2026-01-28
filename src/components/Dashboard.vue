@@ -437,11 +437,18 @@ const totalValueChartData = computed(() => {
     let total = 0
     for (const asset of props.data.assets) {
       const symbol = asset.symbol?.toUpperCase()
+      
       if (symbol && priceByDate[date][symbol] !== undefined) {
+        // 有历史价格数据，使用历史价格
         total += asset.amount * priceByDate[date][symbol]
       } else if (symbol === 'CNY') {
-        // CNY 使用固定汇率近似
-        total += asset.amount / 7.2
+        // CNY 使用当前价格或固定汇率
+        const cnyPrice = asset.price?.priceUsd || (1 / 7.2)
+        total += asset.amount * cnyPrice
+      } else {
+        // 没有历史价格数据，使用当前价格
+        const currentPrice = asset.price?.priceUsd || (asset.valueUsd / asset.amount) || 0
+        total += asset.amount * currentPrice
       }
     }
     return total

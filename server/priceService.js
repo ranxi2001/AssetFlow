@@ -158,21 +158,38 @@ export async function getPrice(symbol, forceRefresh = false, cacheOnly = false) 
   } else if (upperSymbol === 'XAU') {
     priceData = await fetchGoldPrice();
   } else if (upperSymbol === 'USD1') {
-    // USD1 价格 = USD1/USDT * USDT/USD
-    const usd1Price = await fetchUsd1UsdtPrice();
-    const rate = await fetchUsdCnyRate();
+    // USD1 价格：用 C2C 和官方汇率差计算真实 USD 价值
+    const usd1Price = await fetchUsd1UsdtPrice(); // USD1/USDT
+    const c2cRate = await fetchUsdtC2cRate();
+    const officialRate = await fetchUsdCnyRate();
+    const realC2c = c2cRate || officialRate;
+    // 真实 USD 价格 = (USD1/USDT) * (C2C率 / 官方率)
     priceData = {
-      priceUsd: usd1Price,
-      priceCny: usd1Price * rate,
+      priceUsd: usd1Price * (realC2c / officialRate),
+      priceCny: usd1Price * realC2c,
       source: 'coingecko-usd1'
     };
-  } else if (upperSymbol === 'USDT' || upperSymbol === 'USDC') {
-    // USDT/USDC 固定 $1
-    const rate = await fetchUsdCnyRate();
+  } else if (upperSymbol === 'USDG') {
+    // USDG 价格：用 C2C 和官方汇率差计算真实 USD 价值
+    const usdgPrice = await fetchUsdgPrice(); // USDG/USDT
+    const c2cRate = await fetchUsdtC2cRate();
+    const officialRate = await fetchUsdCnyRate();
+    const realC2c = c2cRate || officialRate;
     priceData = {
-      priceUsd: 1,
-      priceCny: rate,
-      source: 'pegged'
+      priceUsd: usdgPrice * (realC2c / officialRate),
+      priceCny: usdgPrice * realC2c,
+      source: 'coingecko-usdg'
+    };
+  } else if (upperSymbol === 'USDT' || upperSymbol === 'USDC') {
+    // USDT/USDC：用 C2C 和官方汇率差计算真实 USD 价值
+    const c2cRate = await fetchUsdtC2cRate();
+    const officialRate = await fetchUsdCnyRate();
+    const realC2c = c2cRate || officialRate;
+    // 真实 USD 价格 = C2C率 / 官方率
+    priceData = {
+      priceUsd: realC2c / officialRate,
+      priceCny: realC2c,
+      source: 'c2c-rate'
     };
   } else if (upperSymbol === 'CNY') {
     // CNY - get the inverse rate
@@ -304,7 +321,7 @@ export async function fetchHistoricalPrices(symbol, days = 30) {
   }
 
   // 稳定币历史（固定$1）
-  if (['USD1', 'USDT', 'USDC'].includes(upperSymbol)) {
+  if (['USD1', 'USDT', 'USDC', 'USDG'].includes(upperSymbol)) {
     const result = [];
     const today = new Date();
     for (let i = days; i >= 0; i--) {
@@ -374,23 +391,45 @@ async function fetchUsdtC2cRate() {
 // 获取 USD1/USDT 价格 (从 Binance)
 async function fetchUsd1UsdtPrice() {
   try {
-    // USD1 可能在某些交易所有交易对，尝试获取
-    // 如果没有，返回 1 (因为都是稳定币)
+    // 使用币安 API 获取 USD1/USDT 实时价格
     const response = await axios.get(
-      'https://api.coingecko.com/api/v3/simple/price',
+      'https://api.binance.com/api/v3/ticker/price',
       {
-        params: {
-          ids: 'usual-usd',
-          vs_currencies: 'usd'
-        },
+        params: { symbol: 'USD1USDT' },
         timeout: 10000
       }
     );
 
-    const price = response.data?.['usual-usd']?.usd;
-    if (price) return price;
+    const price = parseFloat(response.data?.price);
+    if (price && price > 0) {
+      console.log(`USD1/USDT price from Binance: ${price}`);
+      return price;
+    }
   } catch (error) {
-    console.error('Failed to fetch USD1 price:', error.message);
+    console.error('Failed to fetch USD1 price from Binance:', error.message);
+  }
+  return 1; // 默认1:1
+}
+
+// 获取 USDG (Global Dollar) 价格 (从 OKX)
+async function fetchUsdgPrice() {
+  try {
+    // 使用 OKX API 获取 USDG/USDT 实时价格
+    const response = await axios.get(
+      'https://www.okx.com/api/v5/market/ticker',
+      {
+        params: { instId: 'USDG-USDT' },
+        timeout: 10000
+      }
+    );
+
+    const price = parseFloat(response.data?.data?.[0]?.last);
+    if (price && price > 0) {
+      console.log(`USDG/USDT price from OKX: ${price}`);
+      return price;
+    }
+  } catch (error) {
+    console.error('Failed to fetch USDG price from OKX:', error.message);
   }
   return 1; // 默认1:1
 }

@@ -56,7 +56,7 @@
                 {{ formatAmount(asset.amount) }} {{ asset.unit }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                ${{ formatNumber(asset.price?.priceUsd || 0) }}
+                ${{ formatUnitPrice(asset.price?.priceUsd || 0) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 ${{ formatNumber(asset.valueUsd) }}
@@ -260,6 +260,16 @@ function getAddButtonClass(key) {
 
 function formatNumber(num) {
   if (num === undefined || num === null) return '0.00'
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// 单价格式化：稳定币显示4位小数
+function formatUnitPrice(num) {
+  if (num === undefined || num === null) return '0.00'
+  // 如果价格接近 $1（0.9 到 1.1 之间），显示 4 位小数
+  if (num >= 0.9 && num <= 1.1) {
+    return num.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+  }
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
