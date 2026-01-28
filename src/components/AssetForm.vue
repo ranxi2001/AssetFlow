@@ -184,17 +184,19 @@ const emit = defineEmits(['close', 'save'])
 const selectedPreset = ref('')
 
 const presets = [
-  { name: 'bnb', label: 'BNB', category: 'web3', type: 'crypto', symbol: 'BNB', unit: '个', location: '币安钱包' },
+  // Web3 - 按用户实际持有量和使用频率排序
+  { name: 'usdt', label: 'USDT', category: 'web3', type: 'stablecoin', symbol: 'USDT', unit: '个', location: '交易所' },
+  { name: 'usd1', label: 'USD1', category: 'web3', type: 'stablecoin', symbol: 'USD1', unit: '个', location: '币安' },
+  { name: 'bnb', label: 'BNB', category: 'web3', type: 'crypto', symbol: 'BNB', unit: '个', location: '币安' },
+  { name: 'btc', label: 'BTC', category: 'web3', type: 'crypto', symbol: 'BTC', unit: '个', location: '币安' },
   { name: 'eth', label: 'ETH', category: 'web3', type: 'crypto', symbol: 'ETH', unit: '个', location: '钱包' },
-  { name: 'btc', label: 'BTC', category: 'web3', type: 'crypto', symbol: 'BTC', unit: '个', location: '钱包' },
-  { name: 'usdt', label: 'USDT', category: 'web3', type: 'stablecoin', symbol: 'USDT', unit: '个', location: '币安钱包' },
-  { name: 'usd1', label: 'USD1', category: 'web3', type: 'stablecoin', symbol: 'USD1', unit: '个', location: '币安钱包' },
-  { name: 'gold', label: '黄金', category: 'physical', type: 'gold', symbol: 'XAU', unit: 'g', location: '实物' },
-  { name: 'bank', label: '银行存款', category: 'web2', type: 'bank', symbol: 'CNY', unit: 'CNY', location: '' },
-  { name: 'wealth', label: '银行理财', category: 'web2', type: 'wealth', symbol: 'CNY', unit: 'CNY', location: '' },
-  { name: 'alipay', label: '支付宝', category: 'web2', type: 'alipay', symbol: 'CNY', unit: 'CNY', location: '支付宝' },
+  // Web2 - 用户常用理财
+  { name: 'yuliboa', label: '余利宝', category: 'web2', type: 'wealth', symbol: 'CNY', unit: 'CNY', location: '网商银行' },
+  { name: 'yuebao', label: '余额宝', category: 'web2', type: 'alipay', symbol: 'CNY', unit: 'CNY', location: '支付宝' },
+  { name: 'fund', label: '基金', category: 'web2', type: 'fund', symbol: 'CNY', unit: 'CNY', location: '' },
   { name: 'wechat', label: '微信', category: 'web2', type: 'wechat', symbol: 'CNY', unit: 'CNY', location: '微信' },
-  { name: 'stock', label: '股票', category: 'web2', type: 'stock', symbol: 'CNY', unit: '股', location: '' },
+  // 实物
+  { name: 'gold', label: '黄金', category: 'physical', type: 'gold', symbol: 'XAU', unit: 'g', location: '实物' },
 ]
 
 const form = ref({

@@ -33,10 +33,19 @@
             <tr v-for="asset in category.assets" :key="asset.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
-                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3"
-                    :class="getAssetIconBg(asset)">
-                    {{ getAssetIcon(asset) }}
-                  </div>
+                  <!-- Image-based icon for supported symbols -->
+                  <template v-if="hasImageIcon(asset)">
+                    <div class="w-8 h-8 mr-3 flex-shrink-0">
+                      <img :src="getImageIconSrc(asset)" :alt="asset.symbol" class="w-full h-full rounded-full object-cover" />
+                    </div>
+                  </template>
+                  <!-- Text-based icon fallback -->
+                  <template v-else>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3"
+                      :class="getAssetIconBg(asset)">
+                      {{ getAssetIcon(asset) }}
+                    </div>
+                  </template>
                   <div>
                     <div class="text-sm font-medium text-gray-900">{{ asset.name }}</div>
                     <div class="text-xs text-gray-500">{{ asset.symbol }}</div>
@@ -97,6 +106,68 @@ const categoryHeaderStyles = {
   web3: { bg: 'bg-purple-50', text: 'text-purple-800' },
   web2: { bg: 'bg-blue-50', text: 'text-blue-800' },
   physical: { bg: 'bg-amber-50', text: 'text-amber-800' }
+}
+
+// Symbol-based image icons (SVG files)
+const symbolImageIcons = {
+  'BTC': '/icons/btc.svg',
+  'BNB': '/icons/bnb.svg',
+  'ETH': '/icons/eth.svg',
+  'USDT': '/icons/usdt.svg',
+  'USD1': '/icons/usd1.webp',
+  'USDG': '/icons/usdg.webp',
+  'SOL': '/icons/sol.svg',
+  'XAU': '/icons/gold.svg',
+}
+
+// Location-based image icons (for banks etc.)
+const locationImageIcons = {
+  '建设银行': '/icons/ccb.jpg',
+  '工商银行': '/icons/icbc.png',
+  '网商银行': '/icons/mybank.png',
+  '招商银行': '/icons/cmb.png',
+}
+
+// Name-based image icons (for specific products)
+const nameImageIcons = {
+  '帮你投': '/icons/bangnitou.png',
+  '基金': '/icons/fund.svg',
+  '余额宝': '/icons/yuebao.png',
+}
+
+// Check if asset has an image icon (by symbol, name, or location)
+function hasImageIcon(asset) {
+  if (asset.symbol && symbolImageIcons[asset.symbol.toUpperCase()]) {
+    return true
+  }
+  if (asset.name && nameImageIcons[asset.name]) {
+    return true
+  }
+  if (asset.location) {
+    for (const key in locationImageIcons) {
+      if (asset.location.includes(key)) return true
+    }
+  }
+  return false
+}
+
+// Get image icon source path (by symbol, name, or location)
+function getImageIconSrc(asset) {
+  // First check symbol
+  if (asset.symbol && symbolImageIcons[asset.symbol.toUpperCase()]) {
+    return symbolImageIcons[asset.symbol.toUpperCase()]
+  }
+  // Then check name for specific products
+  if (asset.name && nameImageIcons[asset.name]) {
+    return nameImageIcons[asset.name]
+  }
+  // Then check location for banks
+  if (asset.location) {
+    for (const key in locationImageIcons) {
+      if (asset.location.includes(key)) return locationImageIcons[key]
+    }
+  }
+  return ''
 }
 
 // 预定义的类型图标（有这些的优先使用）
