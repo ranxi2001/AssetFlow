@@ -4,11 +4,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-sm font-medium text-gray-500 mb-1">总资产 (USD)</h3>
-        <p class="text-3xl font-bold text-gray-900">${{ formatNumber(data?.totalUsd || 0) }}</p>
+        <p class="text-3xl font-bold text-gray-900">${{ privacyMode ? '****' : formatNumber(data?.totalUsd || 0) }}</p>
       </div>
       <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-sm font-medium text-gray-500 mb-1">总资产 (CNY)</h3>
-        <p class="text-3xl font-bold text-gray-900">¥{{ formatNumber(data?.totalCny || 0) }}</p>
+        <p class="text-3xl font-bold text-gray-900">¥{{ privacyMode ? '****' : formatNumber(data?.totalCny || 0) }}</p>
       </div>
     </div>
 
@@ -84,7 +84,7 @@
     <div class="bg-white rounded-lg shadow p-6 mb-8">
       <h3 class="text-lg font-medium text-gray-900 mb-4">资产总价值走势 (30天)</h3>
       <div class="h-72">
-        <Line v-if="totalValueChartData" :data="totalValueChartData" :options="totalValueLineOptions" />
+        <Line v-if="totalValueChartData" :data="totalValueChartData" :options="totalValueLineOptionsComputed" />
         <div v-else class="h-full flex items-center justify-center text-gray-400">
           暂无历史数据，请先补全价格数据
         </div>
@@ -106,14 +106,14 @@
               {{ getCategoryLabel(key) }}
             </span>
             <span class="text-xs text-gray-500">
-              {{ getPercentage(category.totalUsd) }}%
+              {{ privacyMode ? '**' : getPercentage(category.totalUsd) }}%
             </span>
           </div>
           <div class="text-xl font-semibold text-gray-900 mb-1">
-            ${{ formatNumber(category.totalUsd) }}
+            ${{ privacyMode ? '****' : formatNumber(category.totalUsd) }}
           </div>
           <div class="text-sm text-gray-500">
-            ¥{{ formatNumber(category.totalCny) }}
+            ¥{{ privacyMode ? '****' : formatNumber(category.totalCny) }}
           </div>
           <!-- Progress bar -->
           <div class="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -139,7 +139,8 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointE
 const props = defineProps({
   data: Object,
   priceHistory: Array,
-  backfilling: Boolean
+  backfilling: Boolean,
+  privacyMode: Boolean
 })
 
 defineEmits(['backfill', 'daysChange'])
@@ -495,13 +496,14 @@ const singleAssetLineOptions = {
   }
 }
 
-// 总价值图表配置
-const totalValueLineOptions = {
+// 总价值图表配置（响应式，根据隐私模式调整）
+const totalValueLineOptionsComputed = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: { display: false },
     tooltip: {
+      enabled: !props.privacyMode,
       callbacks: {
         label: (context) => `总价值: $${context.raw?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '-'}`
       }
@@ -512,11 +514,11 @@ const totalValueLineOptions = {
     y: {
       beginAtZero: false,
       ticks: {
-        callback: (value) => '$' + value.toLocaleString()
+        callback: (value) => props.privacyMode ? '****' : '$' + value.toLocaleString()
       }
     }
   }
-}
+}))
 
 function formatNumber(num) {
   if (num === undefined || num === null) return '0'

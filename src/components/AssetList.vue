@@ -53,19 +53,19 @@
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {{ formatAmount(asset.amount) }} {{ asset.unit }}
+                {{ props.privacyMode ? '****' : formatAmount(asset.amount) }} {{ asset.unit }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 ${{ formatUnitPrice(asset.price?.priceUsd || 0) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                ${{ formatNumber(asset.valueUsd) }}
+                ${{ props.privacyMode ? '****' : formatNumber(asset.valueUsd) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                ¥{{ formatNumber(asset.valueCny) }}
+                ¥{{ props.privacyMode ? '****' : formatNumber(asset.valueCny) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ asset.location || '-' }}
+                {{ props.privacyMode ? '****' : (asset.location || '-') }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button @click="$emit('edit', asset)" class="text-blue-600 hover:text-blue-900 mr-3">编辑</button>
@@ -77,8 +77,8 @@
           <tfoot class="bg-gray-50">
             <tr>
               <td colspan="3" class="px-6 py-3 text-sm font-medium text-gray-900">小计</td>
-              <td class="px-6 py-3 text-sm font-bold text-gray-900">${{ formatNumber(category.totalUsd) }}</td>
-              <td class="px-6 py-3 text-sm font-bold text-gray-900">¥{{ formatNumber(category.totalCny) }}</td>
+              <td class="px-6 py-3 text-sm font-bold text-gray-900">${{ props.privacyMode ? '****' : formatNumber(category.totalUsd) }}</td>
+              <td class="px-6 py-3 text-sm font-bold text-gray-900">¥{{ props.privacyMode ? '****' : formatNumber(category.totalCny) }}</td>
               <td colspan="2"></td>
             </tr>
           </tfoot>
@@ -89,9 +89,10 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   assets: Array,
-  byCategory: Object
+  byCategory: Object,
+  privacyMode: Boolean
 })
 
 defineEmits(['edit', 'delete', 'add'])
